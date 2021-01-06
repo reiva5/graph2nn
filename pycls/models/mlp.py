@@ -31,6 +31,7 @@ def get_trans_fun(name):
         'grouplinear_transform': GroupLinearTransform,
         'groupshufflelinear_transform': GroupShuffleLinearTransform,
         'talklinear_transform': TalkLinearTransform,  # relational graph
+        'noisytalklinear_transform': NoisyTalkLinearTransform, # relational dynamic graph 
     }
     assert name in trans_funs.keys(), \
         'Transformation function \'{}\' not supported'.format(name)
@@ -144,6 +145,30 @@ class TalkLinearTransform(nn.Module):
             dim_in, dim_out, cfg.RGRAPH.GROUP_NUM, bias=False,
             message_type=cfg.RGRAPH.MESSAGE_TYPE, sparsity=cfg.RGRAPH.SPARSITY,
             p=cfg.RGRAPH.P, talk_mode=cfg.RGRAPH.TALK_MODE, seed=self.seed)
+
+        self.a_bn = nn.BatchNorm1d(dim_out, eps=cfg.BN.EPS, momentum=cfg.BN.MOM)
+        self.a_bn.final_bn = True
+        self.relu = nn.ReLU(cfg.MEM.RELU_INPLACE)
+
+    def forward(self, x):
+        for layer in self.children():
+            x = layer(x)
+        return x
+
+class NoisyTalkLinearTransform(nn.Module):
+    """Basic transformation: linear, relational graph"""
+
+    def __init__(self, dim_in, dim_out, seed=None):
+        self.seed = seed
+        super(NoisyTalkLinearTransform, self).__init__()
+        self._construct_class(dim_in, dim_out)
+
+    def _construct_class(self, dim_in, dim_out):
+        self.a = NoisyTalkLinear(
+            dim_in, dim_out, cfg.RGRAPH.GROUP_NUM, bias=False,
+            message_type=cfg.RGRAPH.MESSAGE_TYPE, sparsity=cfg.RGRAPH.SPARSITY,
+            p=cfg.RGRAPH.P, talk_mode=cfg.RGRAPH.TALK_MODE, seed=self.seed,
+            fixed_dynamicity=cfg.RGRAPH.FIXED_DINAMICITY, loss_edge_probability=cfg.RGRAPH.LOSE_EDGE_PROBABILITY)
 
         self.a_bn = nn.BatchNorm1d(dim_out, eps=cfg.BN.EPS, momentum=cfg.BN.MOM)
         self.a_bn.final_bn = True

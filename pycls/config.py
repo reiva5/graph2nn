@@ -183,8 +183,11 @@ _C.RGRAPH.AGG_FUNC = 'sum'
 # Save weight matrices as graphs. Warning: the saved matrices can be huge
 _C.RGRAPH.SAVE_GRAPH = False
 
+# Fixed Dinamicity for Dynamic Graph
+_C.RGRAPH.FIXED_DINAMICITY = True
 
-
+# Probability of Lose Edge
+_C.RGRAPH.LOSE_EDGE_PROBABILITY = [0.1, 0.9]
 
 
 

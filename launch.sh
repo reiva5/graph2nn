@@ -14,6 +14,10 @@ if [ "$TASK" = "mlp_cifar10" ]
 then
     DATASET='cifar10'
     PREFIX='mlp_bs128_1gpu_layer3'
+elif [ "$TASK" = "cnn_cifar10" ]
+then
+    DATASET='cifar10'
+    PREFIX='cnn_bs128_1gpu_layer3'
 elif [ "$TASK" = "mlp_cifar10_bio" ]
 then
     DATASET='cifar10'

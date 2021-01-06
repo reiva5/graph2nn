@@ -221,6 +221,56 @@ class TalkLinear(nn.Linear):
         # pdb.set_trace()
         return F.linear(x, weight, self.bias)
 
+class NoisyTalkLinear(nn.Linear):
+    '''Relational graph version of Linear. Neurons "talk" according to the graph structure'''
+
+    def __init__(self, in_channels, out_channels, group_num, bias=False,
+                 message_type='ba', directed=False,
+                 sparsity=0.5, p=0.2, talk_mode='dense', seed=None, fixed_dynamicity=False, loss_edge_probability=[0.1,0.9]):
+        group_num_max = min(in_channels, out_channels)
+        if group_num > group_num_max:
+            group_num = group_num_max
+        # print(group_num, in_channels, out_channels, kernel_size, stride)
+        super(NoisyTalkLinear, self).__init__(
+            in_channels, out_channels, bias)
+
+        self.mask = get_mask(in_channels, out_channels, group_num,
+                             message_type, directed, sparsity, p, talk_mode, seed)
+        self.nonzero = np.sum(self.mask)
+        self.mask = torch.from_numpy(self.mask).float().cuda()
+
+        self.flops_scale = self.nonzero / (in_channels * out_channels)
+        self.params_scale = self.flops_scale
+        self.init_scale = torch.sqrt(out_channels / torch.sum(self.mask.cpu(), dim=0, keepdim=True))
+
+        # Initialize zeros array first
+        self.dinamicity = np.zeros(self.mask.shape)
+        # Initialize array for define probability loss
+        event_loss_edges = np.random.choice(np.array([0,1]).astype(dtype='float32'), int(self.nonzero), p=loss_edge_probability)
+        # Retrieve all index in matrix that value not zeros
+        self.idx_non_zeros = np.where(self.mask.cpu() > 0)
+        # Define dinamicity mask
+        self.dinamicity[self.idx_non_zeros] = event_loss_edges
+
+        self.fixed_dynamicity = fixed_dynamicity
+        self.loss_edge_probability = loss_edge_probability
+
+    def forward(self, x):
+        if self.fixed_dynamicity:
+            dinamicity = self.dinamicity
+        else:
+            # Initialize zeros array first
+            dinamicity = np.zeros(self.mask.shape)
+            # Initialize array for define probability loss
+            event_loss_edges = np.random.choice(np.array([0,1]).astype(dtype='float32'), int(self.nonzero), p=self.loss_edge_probability)
+            # Define dinamicity mask
+            dinamicity[self.idx_non_zeros] = event_loss_edges
+
+        dinamicity = torch.from_numpy(dinamicity).to(torch.device('cuda:0'))
+        weight = dinamicity * self.weight * self.mask
+        # pdb.set_trace()
+        return F.linear(x, weight.float(), self.bias)
+
 
 class SymLinear(nn.Module):
     '''Linear with symmetric weight matrices'''
